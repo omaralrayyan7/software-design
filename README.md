@@ -1,155 +1,89 @@
-# What is the Library Management System (LMS)?
+# Library Management System — Design Patterns
 
-## Overview
+[![Java](https://img.shields.io/badge/Java-17-007396?logo=java)](https://www.java.com/)
+[![Maven](https://img.shields.io/badge/Build-Maven-C71A36?logo=apachemaven)](https://maven.apache.org/)
+[![JUnit 5](https://img.shields.io/badge/Tests-JUnit_5-25A162?logo=junit5)](https://junit.org/junit5/)
 
-The **Library Management System (LMS)** is a Java-based web application designed as a university software design project. It manages books, users, borrowing records, and external library integrations through five classical **Gang of Four (GoF) design patterns**. The project demonstrates how design patterns solve real-world problems: state management, notifications, external API integration, dynamic search enhancement, and centralized database access.
+A Java application demonstrating **five Gang of Four (GoF) design patterns** applied to a realistic Library Management System. Designed as a university software design project.
 
 **Team:** Omar Alrayyan · Mousa Estefan · Ayham Alahmad
 
----
+## The Scenario
 
-## Scenario
+> A user searches for a book. It's checked out — they join the waitlist. When it's returned:
+> - **Observer** notifies all waitlisted users automatically
+> - **State** transitions the book from `CHECKED_OUT` → `AVAILABLE`
+> - **Adapter** queries the national library network seamlessly
+> - **Decorator** adds rating/language filters to search dynamically
+> - **Singleton** ensures one `DatabaseManager` handles all DB transactions
 
-> A user searches for a book. If it's checked out, they join a waitlist. When the book is returned:
-> - **Observer Pattern** → all waitlisted users get automatic notifications
-> - **State Pattern** → book status transitions from `CHECKED_OUT` → `AVAILABLE`
-> - **Adapter Pattern** → seamless integration with the national library network
-> - **Decorator Pattern** → advanced search (filter by rating, language) added without touching base code
-> - **Singleton Pattern** → single `DatabaseManager` instance handles all DB transactions
-
----
-
-## Design Patterns Used
+## Design Patterns
 
 | Pattern | Classes | Purpose |
 |---|---|---|
-| **Singleton** | `DatabaseManager` | One DB connection instance across the entire app |
-| **Observer** | `Book`, `Observer`, `WaitlistedUser`, `User` | Auto-notify waitlisted users when a book is returned |
-| **State** | `BookState`, `AvailableState`, `CheckedOutState`, `ReservedState`, `RemovedState`, `LostState` | Encapsulate book lifecycle transitions |
-| **Adapter** | `LibraryInterface`, `NationalLibraryAdapter`, `LibraryNetworkAdapter` | Integrate external library APIs without changing core logic |
-| **Decorator** | `Search`, `BookSearch`, `SearchDecorator`, `AdvancedSearchDecorator` | Add rating/language filters to search dynamically |
-
----
+| **Singleton** | `DatabaseManager` | One DB connection instance across the app |
+| **Observer** | `Book`, `Observer`, `WaitlistedUser` | Auto-notify waitlist when book is returned |
+| **State** | `BookState`, `AvailableState`, `CheckedOutState`, `ReservedState` … | Encapsulate book lifecycle transitions |
+| **Adapter** | `NationalLibraryAdapter`, `LibraryNetworkAdapter` | Integrate external library APIs without changing core logic |
+| **Decorator** | `BookSearch`, `AdvancedSearchDecorator` | Add rating/language filters without modifying base search |
 
 ## Project Structure
 
 ```
 src/
 ├── main/java/lms/
-│   ├── singleton/
-│   │   └── DatabaseManager.java        # Singleton — thread-safe DB connection
-│   ├── observer/
-│   │   ├── Observer.java               # Observer interface
-│   │   ├── WaitlistedUser.java         # Concrete observer
-│   │   └── Waitlist.java               # Holds queue of observers per book
-│   ├── state/
-│   │   ├── BookState.java              # State interface
-│   │   ├── AvailableState.java
-│   │   ├── CheckedOutState.java
-│   │   ├── ReservedState.java
-│   │   ├── RemovedState.java
-│   │   └── LostState.java
-│   ├── adapter/
-│   │   ├── LibraryInterface.java       # Target interface
-│   │   ├── ExternalLibrary.java        # Adaptee (simulated external API)
-│   │   ├── NationalLibraryAdapter.java # Adapter 1
-│   │   └── LibraryNetworkAdapter.java  # Adapter 2
-│   ├── decorator/
-│   │   ├── Search.java                 # Component interface
-│   │   ├── BookSearch.java             # Concrete component
-│   │   ├── SearchDecorator.java        # Abstract decorator
-│   │   └── AdvancedSearchDecorator.java# Concrete decorator
-│   ├── model/
-│   │   ├── Book.java                   # Subject (Observer) + State holder
-│   │   ├── User.java                   # Observer + borrower
-│   │   └── BorrowingRecord.java        # Borrowing transaction
-│   └── service/
-│       └── LibrarySystem.java          # Facade — main entry point
-└── test/java/lms/
-    └── LibrarySystemTest.java          # JUnit 5 tests for all patterns
+│   ├── singleton/DatabaseManager.java
+│   ├── observer/{Observer, WaitlistedUser, Waitlist}.java
+│   ├── state/{BookState, AvailableState, CheckedOutState, ReservedState, …}.java
+│   ├── adapter/{LibraryInterface, ExternalLibrary, NationalLibraryAdapter, LibraryNetworkAdapter}.java
+│   ├── decorator/{Search, BookSearch, SearchDecorator, AdvancedSearchDecorator}.java
+│   ├── model/{Book, User, BorrowingRecord}.java
+│   └── service/LibrarySystem.java     ← main entry point (Facade)
+└── test/java/lms/LibrarySystemTest.java
 ```
-
----
 
 ## Key Code Segments
 
-### Singleton — DatabaseManager
 ```java
-public class DatabaseManager {
-    private static DatabaseManager instance;
-    private DatabaseManager() {}
-    public static synchronized DatabaseManager getInstance() {
-        if (instance == null) instance = new DatabaseManager();
-        return instance;
-    }
+// Singleton
+public static synchronized DatabaseManager getInstance() {
+    if (instance == null) instance = new DatabaseManager();
+    return instance;
 }
-```
 
-### Observer — Book notifies waitlist
-```java
-public void notifyObservers() {
-    for (Observer observer : observers) observer.update(this);
-}
-```
-
-### State — Book transitions
-```java
-// CheckedOutState → AvailableState on return
+// Observer — book notifies waitlist on return
 public void handleRequest(Book book) {
-    System.out.println("Book returned. Transitioning to AvailableState.");
     book.setState(new AvailableState());
-    book.notifyObservers(); // triggers Observer pattern
+    book.notifyObservers(); // triggers all WaitlistedUser.update()
+}
+
+// Decorator — add filters without touching BookSearch
+AdvancedSearchDecorator adv = new AdvancedSearchDecorator(new BookSearch());
+adv.searchByRating("Java", 4.5);
+adv.searchByLanguage("Java", "Arabic");
+
+// Adapter — unified interface over incompatible external API
+public List<Book> searchBook(String title) {
+    return externalAPI.findBook(title); // adapts ExternalLibrary → LibraryInterface
 }
 ```
-
-### Adapter — external library
-```java
-public class NationalLibraryAdapter implements LibraryInterface {
-    private ExternalLibrary externalAPI;
-    public List<Book> searchBook(String title) {
-        return externalAPI.findBook(title); // adapts incompatible API
-    }
-}
-```
-
-### Decorator — advanced search
-```java
-AdvancedSearchDecorator advSearch = new AdvancedSearchDecorator(new BookSearch());
-advSearch.searchByRating("Java", 4.5);
-advSearch.searchByLanguage("Java", "Arabic");
-```
-
----
 
 ## How to Run
 
-**Prerequisites:** Java 17+, Maven
-
 ```bash
-# Clone and build
 git clone https://github.com/omaralrayyan7/software-design.git
 cd software-design
 mvn compile
-
-# Run the demo
 mvn exec:java -Dexec.mainClass="lms.service.LibrarySystem"
-
-# Run tests
 mvn test
 ```
 
----
-
-## System Benefits
-
-- **Modularity** — each pattern encapsulates one responsibility
-- **Scalability** — add observers or adapters without touching core code
-- **Testability** — decoupled dependencies enable isolated unit tests
-- **Flexibility** — new book states (e.g., "Damaged") added with one class
-- **Reusability** — interfaces and decorators shared across modules
-
----
+**Prerequisites:** Java 17+, Maven 3.8+
 
 ## Class Diagram
 
-See [`docs/class-diagram.png`](docs/class-diagram.png) for the full UML class diagram.
+See [`docs/class-diagram.png`](docs/class-diagram.png) for the full UML diagram.
+
+## License
+
+[MIT](LICENSE)
